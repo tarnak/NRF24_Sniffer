@@ -16,3 +16,7 @@ For a full description of this project see:
 * http://yveaux.blogspot.nl/2014/07/nrf24l01-sniffer-part-1.html
 * http://yveaux.blogspot.nl/2014/07/nrf24l01-sniffer-part-2.html
 * http://yveaux.blogspot.nl/2014/07/nrf24l01-sniffer-part-3.html
+
+
+##
+https://how2electronics.com/stm32-nrf24l01-node-with-esp32-nrf24l01-gateway/
