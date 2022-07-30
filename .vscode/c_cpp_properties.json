@@ -8,8 +8,11 @@
         {
             "name": "PlatformIO",
             "includePath": [
-                "F:/ArduinoProjects/NRF24_Sniffer/include",
-                "F:/ArduinoProjects/NRF24_Sniffer/src",
+                "f:/ArduinoProjects/NRF24_Sniffer/include",
+                "f:/ArduinoProjects/NRF24_Sniffer/src",
+                "f:/ArduinoProjects/NRF24_Sniffer/.pio/libdeps/esp32doit-espduino/RF24",
+                "f:/ArduinoProjects/NRF24_Sniffer/.pio/libdeps/esp32doit-espduino/RF24/utility",
+                "C:/Users/amibo/.platformio/packages/framework-arduinoespressif32/libraries/SPI/src",
                 "C:/Users/amibo/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32/include/newlib/platform_include",
                 "C:/Users/amibo/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32/include/freertos/include",
                 "C:/Users/amibo/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32/include/freertos/include/esp_additions/freertos",
@@ -206,7 +209,6 @@
                 "C:/Users/amibo/.platformio/packages/framework-arduinoespressif32/libraries/RainMaker/src",
                 "C:/Users/amibo/.platformio/packages/framework-arduinoespressif32/libraries/SD/src",
                 "C:/Users/amibo/.platformio/packages/framework-arduinoespressif32/libraries/SD_MMC/src",
-                "C:/Users/amibo/.platformio/packages/framework-arduinoespressif32/libraries/SPI/src",
                 "C:/Users/amibo/.platformio/packages/framework-arduinoespressif32/libraries/SPIFFS/src",
                 "C:/Users/amibo/.platformio/packages/framework-arduinoespressif32/libraries/SimpleBLE/src",
                 "C:/Users/amibo/.platformio/packages/framework-arduinoespressif32/libraries/Ticker/src",
@@ -222,8 +224,11 @@
             "browse": {
                 "limitSymbolsToIncludedHeaders": true,
                 "path": [
-                    "F:/ArduinoProjects/NRF24_Sniffer/include",
-                    "F:/ArduinoProjects/NRF24_Sniffer/src",
+                    "f:/ArduinoProjects/NRF24_Sniffer/include",
+                    "f:/ArduinoProjects/NRF24_Sniffer/src",
+                    "f:/ArduinoProjects/NRF24_Sniffer/.pio/libdeps/esp32doit-espduino/RF24",
+                    "f:/ArduinoProjects/NRF24_Sniffer/.pio/libdeps/esp32doit-espduino/RF24/utility",
+                    "C:/Users/amibo/.platformio/packages/framework-arduinoespressif32/libraries/SPI/src",
                     "C:/Users/amibo/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32/include/newlib/platform_include",
                     "C:/Users/amibo/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32/include/freertos/include",
                     "C:/Users/amibo/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32/include/freertos/include/esp_additions/freertos",
@@ -420,7 +425,6 @@
                     "C:/Users/amibo/.platformio/packages/framework-arduinoespressif32/libraries/RainMaker/src",
                     "C:/Users/amibo/.platformio/packages/framework-arduinoespressif32/libraries/SD/src",
                     "C:/Users/amibo/.platformio/packages/framework-arduinoespressif32/libraries/SD_MMC/src",
-                    "C:/Users/amibo/.platformio/packages/framework-arduinoespressif32/libraries/SPI/src",
                     "C:/Users/amibo/.platformio/packages/framework-arduinoespressif32/libraries/SPIFFS/src",
                     "C:/Users/amibo/.platformio/packages/framework-arduinoespressif32/libraries/SimpleBLE/src",
                     "C:/Users/amibo/.platformio/packages/framework-arduinoespressif32/libraries/Ticker/src",
