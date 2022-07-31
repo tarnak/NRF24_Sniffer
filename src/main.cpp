@@ -25,10 +25,12 @@ uint8_t address[][6] = {"1Node", "2Node"};
 
 // to use different addresses on a pair of radios, we need a variable to
 // uniquely identify which address this radio will use to transmit
-bool radioNumber = 1; // 0 uses address[0] to transmit, 1 uses address[1] to transmit
+bool radioNumber = 0; // 0 uses address[0] to transmit, 1 uses address[1] to transmit
 
 // Used to control whether this node is sending or receiving
-bool role = false; // true = TX role, false = RX role
+#define NRF_NODE_ROLE_TRANSMITTER true
+#define NRF_NODE_ROLE_RECEIVER false
+bool role = NRF_NODE_ROLE_TRANSMITTER; // true = TX role, false = RX role
 
 // For this example, we'll be using a payload containing
 // a single float number that will be incremented
@@ -52,7 +54,7 @@ void setup()
     Serial.println(F("RF24/examples/GettingStarted"));
 
     // To set the radioNumber via the Serial monitor on startup
-    char input;
+    char input = 0;
     /*
     Serial.println(F("Which radio is this? Enter '0' or '1'. Defaults to '0'"));
 
@@ -62,12 +64,13 @@ void setup()
     }
     input = Serial.parseInt();
     */
-    radioNumber = input == 1;
+    radioNumber = input ? 1 : 0;
     Serial.print(F("radioNumber = "));
     Serial.println((int)radioNumber);
 
     Serial.print("this node role: ");
-    Serial.println(role ? "receiver" : "transmitter");
+    Serial.println(role ? "transmitter" : "receiver");
+
     // role variable is hardcoded to RX behavior, inform the user of this
     Serial.println(F("*** PRESS 'T' to begin transmitting to the other node"));
 
@@ -129,7 +132,7 @@ void loop()
         }
 
         // to make this example readable in the serial monitor
-        delay(1000); // slow transmissions down by 1 second
+        delay(5000); // slow transmissions down by 5 seconds
     }
     else
     {
