@@ -49,7 +49,7 @@ int my_putc(char c, FILE *t)
 #endif
 
 // Set up nRF24L01 radio on SPI bus plus CE/CS pins
-static RF24 radio(RF_CE_PIN, RF_CS_PIN);
+static RF24 radio(RF_CE_PIN, RF_CS_PIN); //CE, CS = SS
 
 static NRF24_packet_t bufferData[PACKET_BUFFER_SIZE];
 static CircularBuffer<NRF24_packet_t> packetBuffer(bufferData, sizeof(bufferData) / sizeof(bufferData[0]));
