@@ -128,8 +128,6 @@
  C:/Users/amibo/.platformio/packages/framework-arduinoespressif32/variants/doitESPduino32/pins_arduino.h \
  C:/Users/amibo/.platformio/packages/framework-arduinoespressif32/libraries/SPI/src/SPI.h \
  C:/Users/amibo/.platformio/packages/framework-arduinoespressif32/cores/esp32/esp32-hal-spi.h \
- src/CircularBuffer/CircularBuffer.h \
+ .pio/libdeps/esp32doit-espduino/RF24/printf.h \
  .pio/libdeps/esp32doit-espduino/RF24/RF24.h \
- .pio/libdeps/esp32doit-espduino/RF24/RF24_config.h \
- .pio/libdeps/esp32doit-espduino/RF24/RF24_config.h \
- src/NRF24_sniff_types.h
+ .pio/libdeps/esp32doit-espduino/RF24/RF24_config.h

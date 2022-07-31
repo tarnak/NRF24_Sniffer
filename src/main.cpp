@@ -1,330 +1,175 @@
-#include <Arduino.h>
+/*
+ * See documentation at https://nRF24.github.io/RF24
+ * See License information at root directory of this library
+ * Author: Brendan Doherty (2bndy5)
+ */
+
+/**
+ * A simple example of sending data from 1 nRF24L01 transceiver to another.
+ *
+ * This example was written to be used on 2 devices acting as "nodes".
+ * Use the Serial Monitor to change each node's behavior.
+ */
+#include "Arduino.h"
 #include <SPI.h>
-#include <CircularBuffer/CircularBuffer.h>
-#include <RF24.h>
-#include <RF24_config.h>
+#include "printf.h"
+#include "RF24.h"
 
-// #define LED_SUPPORTED
+// instantiate an object for the nRF24L01 transceiver
+RF24 radio(12, 5); // using pin 7 for the CE pin, and pin 8 for the CSN pin
 
-// Hardware configuration
-#define RF_CE_PIN (9)
-#define RF_CS_PIN (10)
-#define RF_IRQ_PIN (2)
-#define RF_IRQ (RF_IRQ_PIN - 2) // Usually the interrupt = pin -2 (on uno/nano anyway)
-#ifdef LED_SUPPORTED
-#define LED_PIN_LISTEN (A0)
-#define LED_PIN_RX (A1)
-#define LED_PIN_TX (A2)
-#define LED_PIN_CONFIG (A3)
-#define LED_PIN_BUFF_FULL (A4)
-#endif
+// Let these addresses be used for the pair
+uint8_t address[][6] = {"1Node", "2Node"};
+// It is very helpful to think of an address as a path instead of as
+// an identifying device destination
 
-#define RF_MAX_ADDR_WIDTH (5) // Maximum address width, in bytes. MySensors use 5 bytes for addressing, where lowest byte is for node addressing.
-#define MAX_RF_PAYLOAD_SIZE (32)
-#define SER_BAUDRATE (115200)
-#define PACKET_BUFFER_SIZE (30) // Maximum number of packets that can be buffered between reception by NRF and transmission over serial port.
-#define PIPE (0)                // Pipe number to use for listening
+// to use different addresses on a pair of radios, we need a variable to
+// uniquely identify which address this radio will use to transmit
+bool radioNumber = 1; // 0 uses address[0] to transmit, 1 uses address[1] to transmit
 
-// Startup defaults until user reconfigures it
-#define DEFAULT_RF_CHANNEL (76)                   // 76 = Default channel for MySensors.
-#define DEFAULT_RF_DATARATE (RF24_1MBPS)          // Datarate
-#define DEFAULT_RF_ADDR_WIDTH (RF_MAX_ADDR_WIDTH) // We use all but the lowest address byte for promiscuous listening. First byte of data received will then be the node address.
-#define DEFAULT_RF_ADDR_PROMISC_WIDTH (DEFAULT_RF_ADDR_WIDTH - 1)
-//#define DEFAULT_RADIO_ID               ((uint64_t)0xABCDABC000LL)                             // 0xABCDABC000LL = MySensors v1 (1.3) default
-#define DEFAULT_RADIO_ID ((uint64_t)0xA8A8E1FC00LL)   // 0xA8A8E1FC00LL = MySensors v2 (1.4) default
-#define DEFAULT_RF_CRC_LENGTH (2)                     // Length (in bytes) of NRF24 CRC
-#define DEFAULT_RF_PAYLOAD_SIZE (MAX_RF_PAYLOAD_SIZE) // Define NRF24 payload size to maximum, so we'll slurp as many bytes as possible from the packet.
+// Used to control whether this node is sending or receiving
+bool role = false; // true = TX role, false = RX role
 
-// If BINARY_OUTPUT is defined, this sketch will output in hex format to the PC.
-// If undefined it will output text output for development.
-#define BINARY_OUTPUT
+// For this example, we'll be using a payload containing
+// a single float number that will be incremented
+// on every successful transmission
+float payload = 0.0;
 
-#include "NRF24_sniff_types.h"
-
-#ifndef BINARY_OUTPUT
-int my_putc(char c, FILE *t)
+void setup()
 {
-  Serial.write(c);
-}
-#endif
+    Serial.begin(115200);
 
-// Set up nRF24L01 radio on SPI bus plus CE/CS pins
-static RF24 radio(RF_CE_PIN, RF_CS_PIN); //CE, CS = SS
-
-static NRF24_packet_t bufferData[PACKET_BUFFER_SIZE];
-static CircularBuffer<NRF24_packet_t> packetBuffer(bufferData, sizeof(bufferData) / sizeof(bufferData[0]));
-static Serial_header_t serialHdr;
-static volatile Serial_config_t conf = {
-    DEFAULT_RF_CHANNEL, DEFAULT_RF_DATARATE, DEFAULT_RF_ADDR_WIDTH,
-    DEFAULT_RF_ADDR_PROMISC_WIDTH, DEFAULT_RADIO_ID, DEFAULT_RF_CRC_LENGTH,
-    DEFAULT_RF_PAYLOAD_SIZE};
-
-#define GET_PAYLOAD_LEN(p) ((p->packet[conf.addressLen - conf.addressPromiscLen] & 0xFC) >> 2) // First 6 bits of nRF header contain length.
-
-inline static void dumpData(uint8_t *p, int len)
-{
-#ifndef BINARY_OUTPUT
-  while (len--)
-  {
-    printf("%02x", *p++);
-  }
-  Serial.print(' ');
-#else
-  Serial.write(p, len);
-#endif
-}
-
-static void handleNrfIrq()
-{
-  static uint8_t lostPacketCount = 0;
-  // Loop until RX buffer(s) contain no more packets.
-  while (radio.available())
-  {
-#ifdef LED_SUPPORTED
-    digitalWrite(LED_PIN_RX, HIGH);
-#endif
-    if (!packetBuffer.full())
+    // initialize the transceiver on the SPI bus
+    if (!radio.begin())
     {
-#ifdef LED_SUPPORTED
-      digitalWrite(LED_PIN_BUFF_FULL, LOW);
-#endif
-      NRF24_packet_t *p = packetBuffer.getFront();
-      p->timestamp = micros(); // Micros does not increase in interrupt, but it can be used.
-      p->packetsLost = lostPacketCount;
-      uint8_t packetLen = radio.getPayloadSize();
-      if (packetLen > MAX_RF_PAYLOAD_SIZE)
-        packetLen = MAX_RF_PAYLOAD_SIZE;
+        Serial.println(F("radio hardware is not responding!!"));
+        while (1)
+        {
+        } // hold in infinite loop
+    }
 
-      radio.read(p->packet, packetLen);
+    // print example's introductory prompt
+    Serial.println(F("RF24/examples/GettingStarted"));
 
-      // Determine length of actual payload (in bytes) received from NRF24 packet control field (bits 7..2 of byte with offset 1)
-      // Enhanced shockburst format is assumed!
-      if (GET_PAYLOAD_LEN(p) <= MAX_RF_PAYLOAD_SIZE)
-      {
-        // Seems like a valid packet. Enqueue it.
-        packetBuffer.pushFront(p);
-      }
-      else
-      {
-        // Packet with invalid size received. Could increase some counter...
-      }
-      lostPacketCount = 0;
+    // To set the radioNumber via the Serial monitor on startup
+    char input;
+    /*
+    Serial.println(F("Which radio is this? Enter '0' or '1'. Defaults to '0'"));
+
+    while (!Serial.available())
+    {
+        // wait for user input
+    }
+    input = Serial.parseInt();
+    */
+    radioNumber = input == 1;
+    Serial.print(F("radioNumber = "));
+    Serial.println((int)radioNumber);
+
+    Serial.print("this node role: ");
+    Serial.println(role ? "receiver" : "transmitter");
+    // role variable is hardcoded to RX behavior, inform the user of this
+    Serial.println(F("*** PRESS 'T' to begin transmitting to the other node"));
+
+    // Set the PA Level low to try preventing power supply related problems
+    // because these examples are likely run with nodes in close proximity to
+    // each other.
+    radio.setPALevel(RF24_PA_LOW); // RF24_PA_MAX is default.
+
+    // save on transmission time by setting the radio to only transmit the
+    // number of bytes we need to transmit a float
+    radio.setPayloadSize(sizeof(payload)); // float datatype occupies 4 bytes
+
+    // set the TX address of the RX node into the TX pipe
+    radio.openWritingPipe(address[radioNumber]); // always uses pipe 0
+
+    // set the RX address of the TX node into a RX pipe
+    radio.openReadingPipe(1, address[!radioNumber]); // using pipe 1
+
+    // additional setup specific to the node's role
+    if (role)
+    {
+        radio.stopListening(); // put radio in TX mode
     }
     else
     {
-      // Buffer full. Increase lost packet counter.
-#ifdef LED_SUPPORTED
-      digitalWrite(LED_PIN_BUFF_FULL, HIGH);
-#endif
-      bool tx_ok, tx_fail, rx_ready;
-      if (lostPacketCount < 255)
-        lostPacketCount++;
-      // Call 'whatHappened' to reset interrupt status.
-      radio.whatHappened(tx_ok, tx_fail, rx_ready);
-      // Flush buffer to drop the packet.
-      radio.flush_rx();
+        radio.startListening(); // put radio in RX mode
     }
-#ifdef LED_SUPPORTED
-    digitalWrite(LED_PIN_RX, LOW);
-#endif
-  }
-}
 
-static void activateConf(void)
+    // For debugging info
+    // printf_begin();             // needed only once for printing details
+    // radio.printDetails();       // (smaller) function that prints raw register values
+    // radio.printPrettyDetails(); // (larger) function that prints human readable data
+
+} // setup
+
+void loop()
 {
-#ifdef LED_SUPPORTED
-  digitalWrite(LED_PIN_CONFIG, HIGH);
-#endif
 
-  // Match MySensors' channel & datarate
-  radio.setChannel(conf.channel);
-  radio.setDataRate((rf24_datarate_e)conf.rate);
-
-  // Disable CRC & set fixed payload size to allow all packets captured to be returned by Nrf24.
-  radio.disableCRC();
-  radio.setPayloadSize(conf.maxPayloadSize);
-
-  // Configure listening pipe with the 'promiscuous' address and start listening
-  radio.setAddressWidth(conf.addressPromiscLen);
-  radio.openReadingPipe(PIPE, conf.address >> (8 * (conf.addressLen - conf.addressPromiscLen)));
-  radio.startListening();
-
-  // Attach interrupt handler to NRF IRQ output. Overwrites any earlier handler.
-  attachInterrupt(RF_IRQ, handleNrfIrq, FALLING); // NRF24 Irq pin is active low.
-
-  // Initialize serial header's address member to promiscuous address.
-  uint64_t addr = conf.address; // TODO: probably add some shifting!
-  for (int8_t i = sizeof(serialHdr.address) - 1; i >= 0; --i)
-  {
-    serialHdr.address[i] = addr;
-    addr >>= 8;
-  }
-
-  // Send config back. Write record length & message type
-  uint8_t lenAndType = SET_MSG_TYPE(sizeof(conf), MSG_TYPE_CONFIG);
-  dumpData(&lenAndType, sizeof(lenAndType));
-  // Write config
-  dumpData((uint8_t *)&conf, sizeof(conf));
-
-#ifndef BINARY_OUTPUT
-  Serial.print("Channel:     ");
-  Serial.println(conf.channel);
-  Serial.print("Datarate:    ");
-  switch (conf.rate)
-  {
-  case 0:
-    Serial.println("1Mb/s");
-    break;
-  case 1:
-    Serial.println("2Mb/s");
-    break;
-  case 2:
-    Serial.println("250Kb/s");
-    break;
-  }
-  Serial.print("Address:     0x");
-  uint64_t adr = conf.address;
-  for (int8_t i = conf.addressLen - 1; i >= 0; --i)
-  {
-    if (i >= conf.addressLen - conf.addressPromiscLen)
+    if (role)
     {
-      Serial.print((uint8_t)(adr >> (8 * i)), HEX);
+        // This device is a TX node
+
+        unsigned long start_timer = micros();               // start the timer
+        bool report = radio.write(&payload, sizeof(float)); // transmit & save the report
+        unsigned long end_timer = micros();                 // end the timer
+
+        if (report)
+        {
+            Serial.print(F("Transmission successful! ")); // payload was delivered
+            Serial.print(F("Time to transmit = "));
+            Serial.print(end_timer - start_timer); // print the timer result
+            Serial.print(F(" us. Sent: "));
+            Serial.println(payload); // print payload sent
+            payload += 0.01;         // increment float payload
+        }
+        else
+        {
+            Serial.println(F("Transmission failed or timed out")); // payload was not delivered
+        }
+
+        // to make this example readable in the serial monitor
+        delay(1000); // slow transmissions down by 1 second
     }
     else
     {
-      Serial.print("**");
-    }
-  }
-  Serial.println("");
-  Serial.print("Max payload: ");
-  Serial.println(conf.maxPayloadSize);
-  Serial.print("CRC length:  ");
-  Serial.println(conf.crcLength);
-  Serial.println("");
+        // This device is a RX node
 
-  radio.printDetails();
+        uint8_t pipe;
+        if (radio.available(&pipe))
+        {                                           // is there a payload? get the pipe number that recieved it
+            uint8_t bytes = radio.getPayloadSize(); // get the size of the payload
+            radio.read(&payload, bytes);            // fetch payload from FIFO
+            Serial.print(F("Received "));
+            Serial.print(bytes); // print the size of the payload
+            Serial.print(F(" bytes on pipe "));
+            Serial.print(pipe); // print the pipe number
+            Serial.print(F(": "));
+            Serial.println(payload); // print the payload's value
+        }
+    } // role
 
-  Serial.println("");
-  Serial.println("Listening...");
-#endif
-#ifdef LED_SUPPORTED
-  digitalWrite(LED_PIN_CONFIG, LOW);
-#endif
-}
-
-void setup(void)
-{
-#ifdef LED_SUPPORTED
-  pinMode(LED_PIN_LISTEN, OUTPUT);
-  pinMode(LED_PIN_RX, OUTPUT);
-  pinMode(LED_PIN_TX, OUTPUT);
-  pinMode(LED_PIN_CONFIG, OUTPUT);
-  pinMode(LED_PIN_BUFF_FULL, OUTPUT);
-  digitalWrite(LED_PIN_LISTEN, LOW);
-  digitalWrite(LED_PIN_RX, LOW);
-  digitalWrite(LED_PIN_TX, LOW);
-  digitalWrite(LED_PIN_CONFIG, LOW);
-  digitalWrite(LED_PIN_BUFF_FULL, LOW);
-#endif
-
-  Serial.begin(SER_BAUDRATE);
-
-#ifndef BINARY_OUTPUT
-  fdevopen(&my_putc, 0);
-  Serial.println("-- RF24 Sniff --");
-#endif
-
-  radio.begin();
-
-  // Disable shockburst
-  radio.setAutoAck(false);
-  radio.setRetries(0, 0);
-
-  // Configure nRF IRQ input
-  pinMode(RF_IRQ_PIN, INPUT);
-
-#ifdef LED_SUPPORTED
-  digitalWrite(LED_PIN_LISTEN, HIGH);
-#endif
-
-  activateConf();
-}
-
-void loop(void)
-{
-  while (!packetBuffer.empty())
-  {
-#ifdef LED_SUPPORTED
-    digitalWrite(LED_PIN_TX, HIGH);
-#endif
-    // One or more records present
-    NRF24_packet_t *p = packetBuffer.getBack();
-    int serialHdrLen = sizeof(serialHdr) - (conf.addressLen - conf.addressPromiscLen);
-    serialHdr.timestamp = p->timestamp;
-    serialHdr.packetsLost = p->packetsLost;
-
-    // Calculate data length in bits, then round up to get full number of bytes.
-    uint8_t dataLen = ((serialHdrLen << 3)                                 /* Serial packet header */
-                       + ((conf.addressLen - conf.addressPromiscLen) << 3) /* NRF24 LSB address byte(s) */
-                       + 9                                                 /* NRF24 control field */
-                       + (GET_PAYLOAD_LEN(p) << 3)                         /* NRF24 payload length */
-                       + (conf.crcLength << 3)                             /* NRF24 crc length */
-                       + 7                                                 /* Round up to full nr. of bytes */
-                       ) >>
-                      3; /* Convert from bits to bytes */
-
-    // Write record length & message type
-    uint8_t lenAndType = SET_MSG_TYPE(dataLen, MSG_TYPE_PACKET);
-    dumpData(&dataLen, sizeof(lenAndType));
-    // Write serial header
-    dumpData((uint8_t *)&serialHdr, serialHdrLen);
-    // Write packet data
-    dumpData(p->packet, dataLen - serialHdrLen);
-
-#ifndef BINARY_OUTPUT
-    if (p->packetsLost > 0)
+    if (Serial.available())
     {
-      Serial.print(" Lost: ");
-      Serial.print(p->packetsLost);
-    }
-    Serial.println("");
-#endif
-    // Remove record as we're done with it.
-    packetBuffer.popBack();
-#ifdef LED_SUPPORTED
-    digitalWrite(LED_PIN_TX, LOW);
-#endif
-  }
+        // change the role via the serial monitor
 
-  // Test if new config comes in
-  uint8_t lenAndType;
-  if (Serial.available() >= sizeof(lenAndType) + sizeof(conf))
-  {
-    lenAndType = Serial.read();
-    if ((GET_MSG_TYPE(lenAndType) == MSG_TYPE_CONFIG) && (GET_MSG_LEN(lenAndType) == sizeof(conf)))
-    {
-      // Disable nRF interrupt while reading & activating new configuration.
-      noInterrupts();
-      // Retrieve the new configuration
-      uint8_t *c = (uint8_t *)(&conf);
-      for (uint8_t i = 0; i < sizeof(conf); ++i)
-      {
-        *c++ = Serial.read();
-      }
-      // Clear any packets in the buffer and flush rx buffer.
-      packetBuffer.clear();
-      radio.flush_rx();
-      // Activate new config & re-enable nRF interrupt.
-      activateConf();
+        char c = toupper(Serial.read());
+        if (c == 'T' && !role)
+        {
+            // Become the TX node
 
-      interrupts();
+            role = true;
+            Serial.println(F("*** CHANGING TO TRANSMIT ROLE -- PRESS 'R' TO SWITCH BACK"));
+            radio.stopListening();
+        }
+        else if (c == 'R' && role)
+        {
+            // Become the RX node
+
+            role = false;
+            Serial.println(F("*** CHANGING TO RECEIVE ROLE -- PRESS 'T' TO SWITCH BACK"));
+            radio.startListening();
+        }
     }
-    else
-    {
-#ifndef BINARY_OUTPUT
-      Serial.println("Illegal configuration received!");
-#endif
-    }
-  }
-}
-// vim:cin:ai:sts=2 sw=2 ft=cpp1
+
+} // loop

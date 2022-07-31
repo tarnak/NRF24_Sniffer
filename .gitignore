@@ -30,3 +30,5 @@ Release
 
 # SVN storage
 .svn
+.pio/
+
