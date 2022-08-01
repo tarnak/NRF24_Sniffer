@@ -12,6 +12,10 @@
  */
 #include "Arduino.h"
 #include <SPI.h>
+
+//#define SOFTSPI
+
+#include "nRF24L01.h"
 #include "printf.h"
 #include "RF24.h"
 
@@ -25,12 +29,12 @@ uint8_t address[][6] = {"1Node", "2Node"};
 
 // to use different addresses on a pair of radios, we need a variable to
 // uniquely identify which address this radio will use to transmit
-bool radioNumber = 0; // 0 uses address[0] to transmit, 1 uses address[1] to transmit
+bool radioNumber = 1; // 0 uses address[0] to transmit, 1 uses address[1] to transmit
 
 // Used to control whether this node is sending or receiving
 #define NRF_NODE_ROLE_TRANSMITTER true
 #define NRF_NODE_ROLE_RECEIVER false
-bool role = NRF_NODE_ROLE_TRANSMITTER; // true = TX role, false = RX role
+bool role = NRF_NODE_ROLE_RECEIVER; // true = TX role, false = RX role
 
 // For this example, we'll be using a payload containing
 // a single float number that will be incremented
