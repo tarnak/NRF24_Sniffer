@@ -159,7 +159,7 @@ void loop(void)
 #ifndef BINARY_OUTPUT
 int my_putc(char c, FILE *t)
 {
-    Serial.write(c);
+    return Serial.write(c);
 }
 #endif
 
