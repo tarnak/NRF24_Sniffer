@@ -12,6 +12,7 @@
  */
 #include "Arduino.h"
 #include <SPI.h>
+#include <SPIFFS.h>
 
 #include <CircularBuffer/CircularBuffer.h>
 
@@ -121,6 +122,18 @@ void loop(void)
 }
 */
 
+/*
+https://lastminuteengineers.com/nrf24l01-arduino-wireless-communication/
+
+The nRF24L01+ module transmits and receives data on a certain frequency called a channel. 
+For two or more modules to communicate with each other, they must be on the same channel. 
+This channel can be any frequency in the 2.4 GHz ISM band, or to be more precise, it can be between 2.400 to 2.525 GHz (2400 to 2525 MHz).
+
+Each channel takes up a bandwidth of less than 1MHz. This gives us 125 possible channels with 1MHz spacing.
+
+
+*/
+
 #if defined(__XTENSA__)
 #define RF_CE_PIN (12)
 #define RF_CS_PIN (5)
@@ -141,7 +154,7 @@ void loop(void)
 #define PIPE (0)                // Pipe number to use for listening
 
 // Startup defaults until user reconfigures it
-#define DEFAULT_RF_CHANNEL (76)                   // 76 = Default channel for MySensors.
+#define DEFAULT_RF_CHANNEL (77)                   // 76 = Default channel for MySensors.
 #define DEFAULT_RF_DATARATE (RF24_1MBPS)          // Datarate
 #define DEFAULT_RF_ADDR_WIDTH (RF_MAX_ADDR_WIDTH) // We use all but the lowest address byte for promiscuous listening. First byte of data received will then be the node address.
 #define DEFAULT_RF_ADDR_PROMISC_WIDTH (DEFAULT_RF_ADDR_WIDTH - 1)
@@ -152,7 +165,7 @@ void loop(void)
 
 // If BINARY_OUTPUT is defined, this sketch will output in hex format to the PC.
 // If undefined it will output text output for development.
-// #define BINARY_OUTPUT
+#define BINARY_OUTPUT
 
 #include "NRF24_sniff_types.h"
 
