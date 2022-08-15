@@ -18,6 +18,11 @@
 
 #include "nRF24L01.h"
 #include "RF24.h"
+
+#include "SPI_FS.h"
+
+#include "main.h"
+
 // #include <RF24_config.h>
 
 /*
@@ -125,8 +130,8 @@ void loop(void)
 /*
 https://lastminuteengineers.com/nrf24l01-arduino-wireless-communication/
 
-The nRF24L01+ module transmits and receives data on a certain frequency called a channel. 
-For two or more modules to communicate with each other, they must be on the same channel. 
+The nRF24L01+ module transmits and receives data on a certain frequency called a channel.
+For two or more modules to communicate with each other, they must be on the same channel.
 This channel can be any frequency in the 2.4 GHz ISM band, or to be more precise, it can be between 2.400 to 2.525 GHz (2400 to 2525 MHz).
 
 Each channel takes up a bandwidth of less than 1MHz. This gives us 125 possible channels with 1MHz spacing.
@@ -165,7 +170,7 @@ Each channel takes up a bandwidth of less than 1MHz. This gives us 125 possible 
 
 // If BINARY_OUTPUT is defined, this sketch will output in hex format to the PC.
 // If undefined it will output text output for development.
-#define BINARY_OUTPUT
+// #define BINARY_OUTPUT
 
 #include "NRF24_sniff_types.h"
 
@@ -175,6 +180,8 @@ int my_putc(char c, FILE *t)
     return Serial.write(c);
 }
 #endif
+
+SPI_FS spi_fs;
 
 // Set up nRF24L01 radio on SPI bus plus CE/CS pins
 RF24 radio(12, 5, 18, 19, 23);
@@ -331,8 +338,8 @@ static void activateConf(void)
     Serial.println(conf.crcLength);
     Serial.println("");
 
-    //hangs on esp or in general on non desktop devices?
-    // radio.printDetails();
+    // hangs on esp or in general on non desktop devices?
+    //  radio.printDetails();
 
     Serial.println("");
     Serial.println("Listening...");
@@ -358,6 +365,9 @@ void setup(void)
 #endif
 
     Serial.begin(SER_BAUDRATE);
+
+    spi_fs.init(true);
+    spi_fs.testFileOperations();
 
 #ifndef BINARY_OUTPUT
     // fdevopen(&my_putc, 0);
